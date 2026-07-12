@@ -216,3 +216,41 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Segredos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Backups e dados
+backup/*
+!backup/.gitkeep
+logs/*
+!logs/.gitkeep
+*.sql
+*.sql.gz
+*.dump
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+venv_*/
+
+# PHP
+vendor/
+
+# Node
+node_modules/
+
+# IDE e sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporários
+*.tmp
+*.swp
