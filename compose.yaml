@@ -1,0 +1,127 @@
+name: automatum
+
+services:
+  traefik:
+    image: traefik:v3.7.7
+    container_name: automatum-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=false
+      - --ping=true
+      - --log.level=INFO
+      - --accesslog=true
+
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+
+      - --certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./configs/traefik/acme.json:/letsencrypt/acme.json
+      - ./.secrets/phpmyadmin-users:/etc/traefik/phpmyadmin-users:ro
+
+    networks:
+      - proxy
+
+    healthcheck:
+      test:
+        - CMD
+        - traefik
+        - healthcheck
+        - --ping
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mariadb:
+    image: mariadb:11.8.8
+    container_name: automatum-db
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_USER: ${MARIADB_ADMIN_USER}
+      MARIADB_PASSWORD: ${MARIADB_ADMIN_PASSWORD}
+      MARIADB_AUTO_UPGRADE: "1"
+
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+    networks:
+      - backend
+
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      start_period: 30s
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:5.2.3
+    container_name: automatum-phpmyadmin
+    restart: unless-stopped
+
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+    environment:
+      TZ: ${TZ}
+      PMA_HOST: mariadb
+      PMA_PORT: "3306"
+      UPLOAD_LIMIT: ${PMA_UPLOAD_LIMIT}
+
+    networks:
+      - backend
+      - proxy
+
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=automatum-proxy
+      
+      - traefik.http.routers.phpmyadmin.rule=Host(`db.automatum.tech`)
+      - traefik.http.routers.phpmyadmin.entrypoints=websecure
+      - traefik.http.routers.phpmyadmin.tls=true
+      - traefik.http.routers.phpmyadmin.tls.certresolver=letsencrypt
+
+      - traefik.http.services.phpmyadmin.loadbalancer.server.port=80
+
+      - traefik.http.middlewares.phpmyadmin-auth.basicauth.usersfile=/etc/traefik/phpmyadmin-users
+      - traefik.http.middlewares.phpmyadmin-security.headers.stsseconds=31536000
+      - traefik.http.middlewares.phpmyadmin-security.headers.stsincludesubdomains=true
+      - traefik.http.middlewares.phpmyadmin-security.headers.contenttypenosniff=true
+      - traefik.http.middlewares.phpmyadmin-security.headers.framedeny=true
+
+      - traefik.http.routers.phpmyadmin.middlewares=phpmyadmin-auth,phpmyadmin-security
+
+networks:
+  proxy:
+    name: automatum-proxy
+  backend:
+    name: automatum-backend
+    internal: true
+
+volumes:
+  mariadb_data:
+    name: automatum-mariadb-data

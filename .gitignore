@@ -254,3 +254,9 @@ Thumbs.db
 # Temporários
 *.tmp
 *.swp
+
+# Segredos locais
+.secrets/
+
+# Certificados e estado ACME do Traefik
+configs/traefik/acme.json
