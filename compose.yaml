@@ -41,7 +41,8 @@ services:
       DB_NAME: ${MARIADB_DATABASE}
       DB_USER: ${API_DB_USER}
       DB_PASSWORD: ${API_DB_PASSWORD}
-
+      METEO_API_KEY: ${METEO_API_KEY}
+      
     volumes:
       - ./api:/var/www/html:ro
 
