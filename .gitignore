@@ -229,6 +229,7 @@ backup/*
 logs/*
 !logs/.gitkeep
 *.sql
+!database/migrations/*.sql
 *.sql.gz
 *.dump
 
