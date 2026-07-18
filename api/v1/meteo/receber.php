@@ -33,6 +33,13 @@ $requiredFields = [
     'timestamp_estacao',
     'estacao_id',
     'localizacao',
+    'firmware_name',
+    'firmware_version',
+    'build_date',
+    'build_number',
+    'hardware_model',
+    'hardware_revision',
+    'git_commit',
     'boot_count',
     'uptime_s',
 ];
@@ -50,9 +57,51 @@ foreach ($requiredFields as $field) {
 $timestampEstacao = trim((string) $_POST['timestamp_estacao']);
 $estacaoId = trim((string) $_POST['estacao_id']);
 $localizacao = trim((string) $_POST['localizacao']);
-
+$firmwareName = trim((string) $_POST['firmware_name']);
+$firmwareVersion = trim((string) $_POST['firmware_version']);
+$buildDate = trim((string) $_POST['build_date']);
+$buildNumber = trim((string) $_POST['build_number']);
+$hardwareModel = trim((string) $_POST['hardware_model']);
+$hardwareRevision = trim((string) $_POST['hardware_revision']);
+$gitCommit = trim((string) $_POST['git_commit']);
 $bootCount = filter_var($_POST['boot_count'], FILTER_VALIDATE_INT);
 $uptimeS = filter_var($_POST['uptime_s'], FILTER_VALIDATE_INT);
+
+if (
+    strlen($firmwareName) > 40 ||
+    strlen($firmwareVersion) > 20 ||
+    strlen($buildNumber) > 30 ||
+    strlen($hardwareModel) > 40 ||
+    strlen($hardwareRevision) > 20 ||
+    strlen($gitCommit) > 40
+) {
+    jsonResponse([
+        'success' => false,
+        'error' => 'INVALID_BUILD_INFO',
+        'message' => 'Informação de firmware ou hardware excede o tamanho permitido.',
+    ], 422);
+}
+
+$buildDateObject = DateTimeImmutable::createFromFormat('Y-m-d', $buildDate);
+
+if (
+    !$buildDateObject ||
+    $buildDateObject->format('Y-m-d') !== $buildDate
+) {
+    jsonResponse([
+        'success' => false,
+        'error' => 'INVALID_BUILD_DATE',
+        'message' => 'build_date deve usar YYYY-MM-DD.',
+    ], 422);
+}
+
+if (!preg_match('/^[a-fA-F0-9]{7,40}$/', $gitCommit)) {
+    jsonResponse([
+        'success' => false,
+        'error' => 'INVALID_GIT_COMMIT',
+        'message' => 'git_commit deve conter de 7 a 40 caracteres hexadecimais.',
+    ], 422);
+}
 
 if ($bootCount === false || $bootCount < 0 || $uptimeS === false || $uptimeS < 0) {
     jsonResponse([
@@ -114,46 +163,60 @@ try {
     $connection = databaseConnection();
 
         $sql = '
-        INSERT IGNORE INTO meteo_dados (
-            timestamp_estacao,
-            estacao_id,
-            localizacao,
-            boot_count,
-            uptime_s,
-            temp_bme_c,
-            umid_bme_pct,
-            pressao_hpa,
-            lux,
-            temp_dht_c,
-            umid_dht_pct,
-            vento_medio_60s,
-            vento_rajada_60s,
-            direcao_graus,
-            pulsos_chuva_60s,
-            chuva_24h_mm
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ';
+            INSERT IGNORE INTO meteo_dados (
+                timestamp_estacao,
+                estacao_id,
+                localizacao,
+                firmware_name,
+                firmware_version,
+                build_date,
+                build_number,
+                hardware_model,
+                hardware_revision,
+                git_commit,
+                boot_count,
+                uptime_s,
+                temp_bme_c,
+                umid_bme_pct,
+                pressao_hpa,
+                lux,
+                temp_dht_c,
+                umid_dht_pct,
+                vento_medio_60s,
+                vento_rajada_60s,
+                direcao_graus,
+                pulsos_chuva_60s,
+                chuva_24h_mm
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ';
 
     $statement = $connection->prepare($sql);
 
     $statement->bind_param(
-        'sssiidddddddddid',
-        $timestampEstacao,
-        $estacaoId,
-        $localizacao,
-        $bootCount,
-        $uptimeS,
-        $tempBme,
-        $umidBme,
-        $pressao,
-        $lux,
-        $tempDht,
-        $umidDht,
-        $ventoMedio,
-        $ventoRajada,
-        $direcao,
-        $pulsosChuva,
-        $chuva24h
+    'ssssssssssiidddddddddid',
+    $timestampEstacao,
+    $estacaoId,
+    $localizacao,
+    $firmwareName,
+    $firmwareVersion,
+    $buildDate,
+    $buildNumber,
+    $hardwareModel,
+    $hardwareRevision,
+    $gitCommit,
+    $bootCount,
+    $uptimeS,
+    $tempBme,
+    $umidBme,
+    $pressao,
+    $lux,
+    $tempDht,
+    $umidDht,
+    $ventoMedio,
+    $ventoRajada,
+    $direcao,
+    $pulsosChuva,
+    $chuva24h
     );
 
     $statement->execute();
@@ -200,6 +263,12 @@ try {
         'registro_id' => $registroId,
         'estacao_id' => $estacaoId,
         'timestamp_estacao' => $timestampEstacao,
+        'firmware' => [
+            'name' => $firmwareName,
+            'version' => $firmwareVersion,
+            'build_number' => $buildNumber,
+            'git_commit' => $gitCommit,
+        ],
         'server_time' => date(DATE_ATOM),
     ], $novoRegistro ? 201 : 200);
 } catch (Throwable $exception) {
