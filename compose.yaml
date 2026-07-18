@@ -1,6 +1,29 @@
 name: automatum
 
 services:
+  firmware-nginx:
+    image: nginx:1.29-alpine
+    container_name: automatum-firmware-nginx
+    restart: unless-stopped
+
+    volumes:
+      - ./firmware/esp32/homologacao/METEO_HML_001/public:/usr/share/nginx/html:ro
+      - ./configs/nginx/firmware/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+    networks:
+      - proxy
+
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=automatum-proxy
+
+      - traefik.http.routers.firmware.rule=Host(`firmware.automatum.tech`)
+      - traefik.http.routers.firmware.entrypoints=websecure
+      - traefik.http.routers.firmware.tls=true
+      - traefik.http.routers.firmware.tls.certresolver=letsencrypt
+
+      - traefik.http.services.firmware.loadbalancer.server.port=80
+      
   api-nginx:
     image: nginx:1.29-alpine
     container_name: automatum-api-nginx

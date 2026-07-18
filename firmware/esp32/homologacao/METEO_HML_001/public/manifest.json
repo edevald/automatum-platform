@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "device": "METEO_HML_001",
+  "version": "1.2.0",
+  "build_number": "20260718.002",
+  "hardware_model": "ESP32-DEVKIT-V1",
+  "hardware_revision": "REV_A",
+  "git_commit": "7fc5f81",
+  "released_at": "2026-07-18T10:56:00-03:00",
+  "firmware_url": "https://firmware.automatum.tech/releases/METEO_HML_001_1.2.0_20260718.002.bin",
+  "sha256": "f53abfabb55a27021efba8e48f0edd09e216d6c3d94fde831823b31d205cf7ea",
+  "mandatory": false
+}
